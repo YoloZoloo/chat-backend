@@ -69,24 +69,24 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	uniqueID, err := CheckPassword(user_id, password)
 
 	if err != nil {
-		http.Error(w, "Couldn't generate token.", http.StatusServiceUnavailable)
+		http.Error(w, "Wrong credentials", http.StatusUnauthorized)
 		return
 	} else {
 		jwtToken, err := GenerateJWT(user_id, uniqueID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		name, err := GetNameOfTheUser(uniqueID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			http.Error(w, err.Error(), http.StatusExpectationFailed)
 			return
 		}
 
 		respData, err := json.Marshal(&loginResponse{Token: jwtToken, UID: uniqueID, Name: name})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} else {
 			AllowOriginAccess(w, r)

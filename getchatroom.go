@@ -19,6 +19,7 @@ func GetSubscribedRooms(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Authorization")
 	uniqueID, err := ValidateToken(token)
 	if err != nil {
+		AllowOriginAccess(w, r)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
