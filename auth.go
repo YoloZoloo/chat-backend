@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"os"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -12,8 +13,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var jwtKey = []byte("supersecretkey")
-
 type JWTClaim struct {
 	UniqueID int16  `json:"id"`
 	UserID   string `json:"user_id"`
@@ -21,6 +20,7 @@ type JWTClaim struct {
 }
 
 func GenerateJWT(user_id string, id int16) (tokenString string, err error) {
+	var jwtKey = []byte(os.Getenv("GO_CHAT_JWT_KEY"))
 	expirationTime := time.Now().Add(1 * time.Hour)
 	claims := &JWTClaim{
 		UniqueID: id,
@@ -35,6 +35,7 @@ func GenerateJWT(user_id string, id int16) (tokenString string, err error) {
 }
 
 func ValidateToken(signedToken string) (int16, error) {
+	var jwtKey = []byte(os.Getenv("GO_CHAT_JWT_KEY"))
 	token, err := jwt.ParseWithClaims(
 		signedToken,
 		&JWTClaim{},

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 )
@@ -55,17 +57,27 @@ func GetAdminPrivilige(userID string) int {
 	return count
 }
 
-func RegisterUser(w http.ResponseWriter, r *http.Request) {
+type registerForm struct {
+	UserID    string `json:"user_id"`
+	Password  string `json:"password"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+}
 
-	if err := r.ParseForm(); err != nil {
-		fmt.Fprintf(w, "ParseForm() err: %v", err)
-		http.Error(w, "Parsing failed.", http.StatusBadRequest)
+func RegisterUser(w http.ResponseWriter, r *http.Request) {
+	reqBody, _ := ioutil.ReadAll(r.Body)
+	var data registerForm
+	err := json.Unmarshal(reqBody, &data)
+	if err != nil {
+		respondError(w, "Can't parse request", http.StatusBadRequest)
 		return
 	}
-	user_id := r.FormValue("user_id")
-	password := r.FormValue("password")
-	firstName := r.FormValue("firstName")
-	lastName := r.FormValue("lastName")
+
+	user_id := data.UserID
+	password := data.Password
+	firstName := data.FirstName
+	lastName := data.LastName
+
 	adminAuthority := GetAdminPrivilige(user_id)
 	fmt.Println(user_id, password, firstName, lastName, adminAuthority)
 
@@ -73,7 +85,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	queryString := "insert into user_m(user_id, password, firstname, lastname, adminAuthority) values (?, ?, ?, ?, ?)"
 	stmt, err := db.Prepare(queryString)
 	if err != nil {
-		http.Error(w, "couldn't prepare insert statement.", http.StatusBadRequest)
+		respondError(w, "couldn't prepare insertadfa statement.", http.StatusBadRequest)
 		return
 	}
 	defer stmt.Close()
@@ -81,7 +93,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	hashedPassword, _ := HashPassword(password)
 	_, err = stmt.Exec(user_id, hashedPassword, firstName, lastName, adminAuthority)
 	if err != nil {
-		http.Error(w, "insert statement failed", http.StatusBadRequest)
+		respondError(w, "insert statement failed", http.StatusBadRequest)
 		return
 	}
 	stmt.Close()
@@ -90,7 +102,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	uniqID, err := GetUniqID(user_id)
 	fmt.Println("uniqID: ", uniqID)
 	if err != nil {
-		http.Error(w, "couldn't get uniqID.", http.StatusBadRequest)
+		respondError(w, "couldn't get uniqID.", http.StatusBadRequest)
 		return
 	}
 
@@ -98,22 +110,22 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	queryString = "INSERT INTO grouproom_m (grouproom_id,guest_id) VALUES (0,?)"
 	stmt, err = db.Prepare(queryString)
 	if err != nil {
-		http.Error(w, "couldn't prepare insert statement.", http.StatusBadRequest)
+		respondError(w, "couldn't prepare insert statement.", http.StatusBadRequest)
 		return
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(uniqID)
 	if err != nil {
-		http.Error(w, "insert statement for lobby failed", http.StatusBadRequest)
+		respondError(w, "insert statement for lobby failed", http.StatusBadRequest)
 		return
 	}
 	stmt.Close()
 
-	queryString = "SELECT id FROM user_m where user_id != ? ORDER BY id ASC"
-	rows, err := db.Query(queryString, user_id)
+	queryString = "SELECT id FROM user_m where id != ? ORDER BY id ASC"
+	rows, err := db.Query(queryString, uniqID)
 
 	if err != nil {
-		http.Error(w, "select statement failed", http.StatusBadRequest)
+		respondError(w, "select statement failed", http.StatusBadRequest)
 		return
 	}
 	defer rows.Close()
@@ -123,7 +135,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var insertValue string
 		if err := rows.Scan(&insertValue); err != nil {
-			http.Error(w, "Scanning rows failed", http.StatusBadRequest)
+			respondError(w, "Scanning rows failed", http.StatusBadRequest)
 			return
 		}
 
@@ -139,19 +151,19 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		queryString = "INSERT INTO privateroom_m (idA,idB) VALUES " + privChatInsertsValues
 		stmt, err = db.Prepare(queryString)
 		if err != nil {
-			http.Error(w, "couldn't prepare insert statement.", http.StatusBadRequest)
+			respondError(w, "couldn't prepare insert statement.", http.StatusBadRequest)
 			return
 		}
 		defer stmt.Close()
 		_, err = stmt.Exec()
 		if err != nil {
-			http.Error(w, "insert statement failed", http.StatusBadRequest)
+			respondError(w, "insert statement failed", http.StatusBadRequest)
 			return
 		}
 		stmt.Close()
 	}
 
-	AllowOriginAccess(w, r)
+	AllowOriginAccess(w)
 	w.WriteHeader(http.StatusOK) // 200 OK
 	return
 }

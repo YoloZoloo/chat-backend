@@ -1,14 +1,10 @@
 package main
 
 import (
-	"bufio"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"os"
 
 	_ "github.com/astaxie/session"
 	_ "github.com/go-sql-driver/mysql"
@@ -58,8 +54,11 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, _ := ioutil.ReadAll(r.Body)
 	var data userCredentials
-	json.Unmarshal(reqBody, &data)
-
+	err := json.Unmarshal(reqBody, &data)
+	if err != nil {
+		respondError(w, "Can't parse request", http.StatusBadRequest)
+		return
+	}
 	user_id := data.UserID
 	password := data.Password
 
@@ -80,43 +79,18 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 		name, err := GetNameOfTheUser(uniqueID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusExpectationFailed)
+			respondError(w, err.Error(), http.StatusExpectationFailed)
 			return
 		}
 
 		respData, err := json.Marshal(&loginResponse{Token: jwtToken, UID: uniqueID, Name: name})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err.Error(), http.StatusInternalServerError)
 			return
 		} else {
-			AllowOriginAccess(w, r)
+			AllowOriginAccess(w)
 			w.Write([]byte(respData))
 			return
 		}
 	}
-}
-
-//This function should be replaced by your own DB. It doesn't how to be MYSQL.
-func OpenDB() (*sql.DB, error) {
-	envFile, err := os.Open("./.env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer envFile.Close()
-
-	var envVariables []string
-	scanner := bufio.NewScanner(envFile)
-	// optionally, resize scanner's capacity for lines over 64K, see next example
-	for scanner.Scan() {
-		envVariables = append(envVariables, scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
-	if err != nil {
-		panic(err.Error())
-	}
-	db, err := sql.Open("mysql", envVariables[0]+"@tcp("+envVariables[1]+")/"+envVariables[2])
-	return db, err
 }

@@ -26,9 +26,7 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 	uniqueID, err := ValidateToken(token)
 
 	if err != nil {
-		fmt.Println("w, err.Error(), http.StatusUnauthorized")
-		AllowOriginAccess(w, r)
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		respondError(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -40,7 +38,7 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 
 	db, err := OpenDB()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -59,8 +57,7 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query(queryString, uniqueID, roomID)
 
 	if err != nil {
-		fmt.Println("w, err.Error(), http.StatusNonAuthoritativeInfo")
-		http.Error(w, err.Error(), http.StatusNonAuthoritativeInfo)
+		respondError(w, err.Error(), http.StatusNonAuthoritativeInfo)
 		return
 	}
 
@@ -76,7 +73,7 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 		var FirstName string
 		var SenderID string
 		if err := rows.Scan(&MessageID, &Message, &DateTime, &LastName, &FirstName, &SenderID); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		messages = append(messages, ChatMessages{MessageID: MessageID,
@@ -87,10 +84,10 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 	rows.Close()
 	respData, err := json.Marshal(messages)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	AllowOriginAccess(w, r)
+	AllowOriginAccess(w)
 	w.Write(respData)
 	return
 }
@@ -98,8 +95,7 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Authorization")
 	uniqueID, err := ValidateToken(token)
 	if err != nil {
-		AllowOriginAccess(w, r)
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		respondError(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -112,13 +108,13 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 
 	db, err := OpenDB()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	roomID, err := GetPrivRoomID(uniqueID, peer)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	fmt.Println("privRoomID", roomID)
@@ -139,7 +135,7 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query(queryString, uniqueID, uniqueID, roomID)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNonAuthoritativeInfo)
+		respondError(w, err.Error(), http.StatusNonAuthoritativeInfo)
 		return
 	}
 
@@ -155,7 +151,7 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 		var FirstName string
 		var SenderID string
 		if err := rows.Scan(&MessageID, &Message, &DateTime, &LastName, &FirstName, &SenderID); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		messages = append(messages, ChatMessages{MessageID: MessageID,
@@ -166,10 +162,10 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 	rows.Close()
 	respData, err := json.Marshal(messages)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	AllowOriginAccess(w, r)
+	AllowOriginAccess(w)
 	w.Write(respData)
 	return
 }
