@@ -15,8 +15,8 @@ func GetUniqID(userID string) (int, error) {
 	}
 
 	var uniqID int
-	queryString := "SELECT id FROM chat.user_m where user_id = ?"
-	rows, err := db.Query(queryString, uniqID)
+	queryString := "SELECT id FROM user_m where user_id = ?"
+	rows, err := db.Query(queryString, userID)
 	if err != nil {
 		fmt.Println(err)
 		return 0, err
@@ -65,9 +65,14 @@ type registerForm struct {
 }
 
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
-	reqBody, _ := ioutil.ReadAll(r.Body)
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		respondError(w, "Reading requets body failed", http.StatusBadRequest)
+		return
+	}
+
 	var data registerForm
-	err := json.Unmarshal(reqBody, &data)
+	err = json.Unmarshal(reqBody, &data)
 	if err != nil {
 		respondError(w, "Can't parse request", http.StatusBadRequest)
 		return
