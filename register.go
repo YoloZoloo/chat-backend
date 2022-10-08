@@ -15,7 +15,7 @@ func GetUniqID(userID string) (int, error) {
 	}
 
 	var uniqID int
-	queryString := "SELECT id FROM user_m where user_id = ?"
+	queryString := "SELECT id FROM chat.user_m where user_id = ?"
 	rows, err := db.Query(queryString, userID)
 	if err != nil {
 		fmt.Println(err)
@@ -87,7 +87,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(user_id, password, firstName, lastName, adminAuthority)
 
 	db, err := OpenDB()
-	queryString := "insert into user_m(user_id, password, firstname, lastname, adminAuthority) values (?, ?, ?, ?, ?)"
+	queryString := "insert into chat.user_m(user_id, password, firstname, lastname, adminAuthority) values (?, ?, ?, ?, ?)"
 	stmt, err := db.Prepare(queryString)
 	if err != nil {
 		respondError(w, "couldn't prepare insertadfa statement.", http.StatusBadRequest)
@@ -112,7 +112,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Insert to lobby
-	queryString = "INSERT INTO grouproom_m (grouproom_id,guest_id) VALUES (0,?)"
+	queryString = "INSERT INTO chat.grouproom_m (grouproom_id,guest_id) VALUES (0,?)"
 	stmt, err = db.Prepare(queryString)
 	if err != nil {
 		respondError(w, "couldn't prepare insert statement.", http.StatusBadRequest)
@@ -126,7 +126,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 	stmt.Close()
 
-	queryString = "SELECT id FROM user_m where id != ? ORDER BY id ASC"
+	queryString = "SELECT id FROM chat.user_m where id != ? ORDER BY id ASC"
 	rows, err := db.Query(queryString, uniqID)
 
 	if err != nil {
@@ -153,7 +153,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	sz := len(privChatInsertsValues)
 	if sz > 0 {
 		privChatInsertsValues = privChatInsertsValues[:sz-1] + ";"
-		queryString = "INSERT INTO privateroom_m (idA,idB) VALUES " + privChatInsertsValues
+		queryString = "INSERT INTO chat.privateroom_m (idA,idB) VALUES " + privChatInsertsValues
 		stmt, err = db.Prepare(queryString)
 		if err != nil {
 			respondError(w, "couldn't prepare insert statement.", http.StatusBadRequest)

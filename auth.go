@@ -75,7 +75,7 @@ func CheckPassword(user_id string, password string) (int16, error) {
 		return 0, err
 	}
 
-	queryString := "select id, user_id, password from user_m where user_id = ?"
+	queryString := "select id, user_id, password from chat.user_m where user_id = ?"
 
 	stmt, err := db.Prepare(queryString)
 

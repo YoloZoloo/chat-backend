@@ -27,7 +27,7 @@ func GetNameOfTheUser(uniqID int16) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	queryString := `select IFNULL(firstname, "") as firstname, IFNULL(lastname, "") as lastname from user_m where id = ?`
+	queryString := `select IFNULL(firstname, "") as firstname, IFNULL(lastname, "") as lastname from chat.user_m where id = ?`
 
 	rows, err := db.Query(queryString, uniqID)
 
