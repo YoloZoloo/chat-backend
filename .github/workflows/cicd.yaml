@@ -5,11 +5,10 @@ name: build
 jobs:
   test:
     runs-on: ubuntu-latest
-    # environment: prod
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: 1.19
 
@@ -18,24 +17,15 @@ jobs:
       - name: Build
         run: go build -o backend-service
       - name: create environment variables
-        env:
-          DB_USER_NAME: ${{ secrets.DB_USER_NAME }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          SIGN_KEY: ${{ secrets.SIGN_KEY }}
-          LOGIN_TEST_USER_ID: ${{ secrets.LOGIN_TEST_USER_ID }}
-          LOGIN_TEST_USER_PASS: ${{ secrets.LOGIN_TEST_USER_PASS }}
         run: |
-          echo "LOGIN_TEST_USER_ID=$LOGIN_TEST_USER_ID" >> $GITHUB_ENV
-          echo "LOGIN_TEST_USER_PASS=$LOGIN_TEST_USER_PASS" >> $GITHUB_ENV
+          echo "LOGIN_TEST_USER_ID=${{ secrets.LOGIN_TEST_USER_ID }}" >> $GITHUB_ENV
+          echo "LOGIN_TEST_USER_PASS=${{ secrets.LOGIN_TEST_USER_PASS }}" >> $GITHUB_ENV
           touch .env
-          echo "$DB_USER_NAME" >> .env
-          echo "$DB_PASS" >> .env
-          echo "$DB_HOST" >> .env
-          echo "$DB_PORT" >> .env
-          echo "$DB_NAME" >> .env
-          echo "$SIGN_KEY" >> .env
+          echo "${{ secrets.DB_USER_NAME }}" >> .env
+          echo "${{ secrets.DB_PASS }}" >> .env
+          echo "${{ secrets.DB_HOST }}" >> .env
+          echo "${{ secrets.DB_PORT }}" >> .env
+          echo "${{ secrets.DB_NAME }}" >> .env
+          echo "${{ secrets.SIGN_KEY }}" >> .env
       - name: run test
         run: go test
