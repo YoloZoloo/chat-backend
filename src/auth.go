@@ -1,8 +1,9 @@
-package main
+package src
 
 import (
-	"database/sql"
+	model "chat-backend/model"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -14,17 +15,17 @@ import (
 )
 
 type JWTClaim struct {
-	UniqueID int16  `json:"id"`
-	UserID   string `json:"user_id"`
+	UniqueID uint   `json:"id"`
+	UserName string `json:"user_id"`
 	jwt.StandardClaims
 }
 
-func GenerateJWT(user_id string, id int16) (tokenString string, err error) {
+func GenerateJWT(user model.User) (tokenString string, err error) {
 	var jwtKey = []byte(os.Getenv("GO_CHAT_JWT_KEY"))
 	expirationTime := time.Now().Add(1 * time.Hour)
 	claims := &JWTClaim{
-		UniqueID: id,
-		UserID:   user_id,
+		UniqueID: uint(user.ID),
+		UserName: user.Username,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
@@ -34,7 +35,7 @@ func GenerateJWT(user_id string, id int16) (tokenString string, err error) {
 	return
 }
 
-func ValidateToken(signedToken string) (int16, error) {
+func ValidateToken(signedToken string) (uint, error) {
 	var jwtKey = []byte(os.Getenv("GO_CHAT_JWT_KEY"))
 	token, err := jwt.ParseWithClaims(
 		signedToken,
@@ -47,7 +48,7 @@ func ValidateToken(signedToken string) (int16, error) {
 		return 0, err
 	}
 	claims, ok := token.Claims.(*JWTClaim)
-	var id int16
+	var id uint
 	id = claims.UniqueID
 	if !ok {
 		err = errors.New("couldn't parse claims")
@@ -68,42 +69,23 @@ func HashPassword(password string) (string, error) {
 	return string(bytes), nil
 }
 
-func CheckPassword(user_id string, password string) (int16, error) {
-	db, err := OpenDB()
+func CheckPassword(credentials UserCredentials) (model.User, error) {
+	db, err := model.DbInit()
 
 	if err != nil {
-		return 0, err
+		return model.User{}, err
 	}
+	var user model.User
+	result := db.Take(&user, "username = ?", credentials.UserName)
+	if result.RowsAffected == 0 || result.Error != nil {
+		return model.User{}, errors.New("No such user.\r\n")
+	}
+	fmt.Println(result)
 
-	queryString := "select id, user_id, password from chat.user_m where user_id = ?"
-
-	stmt, err := db.Prepare(queryString)
-
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password))
 	if err != nil {
-		return 0, err
+		return model.User{}, errors.New("Invalid username or password.\r\n")
 	}
 
-	defer stmt.Close()
-
-	userId := ""
-	accountPassword := ""
-	var id int16
-
-	err = stmt.QueryRow(user_id).Scan(&id, &userId, &accountPassword)
-
-	if err != nil {
-
-		if err == sql.ErrNoRows {
-			return 0, errors.New("Invalid username or password.\r\n")
-		}
-
-		return 0, err
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(accountPassword), []byte(password))
-
-	if err != nil {
-		return 0, errors.New("Invalid username or password.\r\n")
-	}
-	return id, nil
+	return user, nil
 }

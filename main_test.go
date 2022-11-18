@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"chat-backend/src"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -25,13 +26,12 @@ func TestCurlMainScreen(t *testing.T) {
 
 func TestLoginTest(t *testing.T) {
 	requestURL := "http://localhost:9999/api/login"
-	user_id := os.Getenv("LOGIN_TEST_USER_ID")
+	userName := os.Getenv("LOGIN_TEST_USER_ID")
 	pass := os.Getenv("LOGIN_TEST_USER_PASS")
-	creds := &userCredentials{UserID: user_id, Password: pass}
+	creds := &src.UserCredentials{UserName: userName, Password: pass}
 	t.Log("data: ", creds)
 	data, _ := json.Marshal(creds)
 	t.Log("data: ", data)
-	// t.Log("data: ", []byte(data))
 	res, err := http.Post(requestURL, "application/json", bytes.NewBuffer([]byte(data)))
 	if err != nil {
 		t.Errorf("error: %q", err)
