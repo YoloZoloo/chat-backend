@@ -1,7 +1,8 @@
-package main
+package test
 
 import (
 	"bytes"
+	"chat-backend/src"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestCurlMainScreen(t *testing.T) {
-	go main()
+	go src.StartServer()
 	Sleep(3 * Second)
 	requestURL := "http://localhost:9999"
 	res, err := http.Get(requestURL)
@@ -27,7 +28,7 @@ func TestLoginTest(t *testing.T) {
 	requestURL := "http://localhost:9999/api/login"
 	user_id := os.Getenv("LOGIN_TEST_USER_ID")
 	pass := os.Getenv("LOGIN_TEST_USER_PASS")
-	creds := &userCredentials{UserID: user_id, Password: pass}
+	creds := &src.UserCredentials{UserID: user_id, Password: pass}
 	t.Log("data: ", creds)
 	data, _ := json.Marshal(creds)
 	t.Log("data: ", data)

@@ -1,4 +1,4 @@
-package main
+package src
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type userCredentials struct {
+type UserCredentials struct {
 	ID       int    `json:"id"`
 	UserID   string `json:"user_id"`
 	Password string `json:"password"`
@@ -53,7 +53,7 @@ func GetNameOfTheUser(uniqID int16) (string, error) {
 func Login(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, _ := ioutil.ReadAll(r.Body)
-	var data userCredentials
+	var data UserCredentials
 	err := json.Unmarshal(reqBody, &data)
 	if err != nil {
 		respondError(w, "Can't parse request", http.StatusBadRequest)

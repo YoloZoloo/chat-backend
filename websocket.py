@@ -8,7 +8,7 @@ import string
 import traceback
 import websockets
 import datetime
-import cnManager
+import src.cnManager as cnManager
 import ssl
 import pathlib
 
