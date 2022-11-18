@@ -11,10 +11,13 @@ import (
 )
 
 func main() {
-	migrateArg := os.Args[1]
-	if migrateArg == "migrate" {
-		model.Migrate()
-		return
+	if len(os.Args) > 1 {
+		migrateArg := os.Args[1]
+		if migrateArg == "migrate" {
+			src.SetEnvVariables()
+			model.Migrate()
+			return
+		}
 	}
 	src.SetEnvVariables()
 	src.StartServer()

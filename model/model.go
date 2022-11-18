@@ -10,7 +10,7 @@ import (
 )
 
 type User struct {
-	ID             uint   `gorm:"primarykey"`
+	ID             uint   `gorm:"primarykey; autoIncrement"`
 	Username       string `gorm:"unique"`
 	Firstname      string
 	Lastname       string
@@ -20,21 +20,22 @@ type User struct {
 }
 
 type RoomChat struct {
-	RoomID uint   `gorm:"primarykey"`
-	UserID []uint `gorm:"not null"`
+	RoomID int32 `gorm:"not null"`
+	UserID uint  `gorm:"not null"`
 }
 
 type RoomChat_t struct {
 	MessageID uint `gorm:"primarykey; autoIncrement"`
 	Message   string
 	SenderID  uint
-	RoomID    uint
+	RoomID    int32
 	Datetime  time.Time
 }
 
 type PrivateChat struct {
-	RoomID uint   `gorm:"primarykey"`
-	UserID []uint `gorm:"not null"`
+	RoomID uint `gorm:"primarykey; autoIncrement"`
+	PeerID uint `gorm:"not null"`
+	UserId uint `gorm:"not null"`
 }
 type PrivateChat_t struct {
 	MessageID     uint `gorm:"primarykey; autoIncrement"`
@@ -45,7 +46,11 @@ type PrivateChat_t struct {
 }
 
 func Migrate() {
-	db := DbInit()
+	db, err := DbInit()
+	if err != nil {
+		fmt.Println(err.Error())
+		panic("failed to connect database")
+	}
 	db.AutoMigrate(&User{})
 	db.AutoMigrate(&RoomChat{})
 	db.AutoMigrate(&RoomChat_t{})
@@ -53,16 +58,12 @@ func Migrate() {
 	db.AutoMigrate(&PrivateChat_t{})
 }
 
-func DbInit() *gorm.DB {
+func DbInit() (*gorm.DB, error) {
 	dsn := os.Getenv("GO_CHAT_DB_USERNAME") + ":" + os.Getenv("GO_CHAT_DB_PASSWORD") +
 		"@tcp(" +
 		os.Getenv("GO_CHAT_DB_HOST") + ":" + os.Getenv("GO_CHAT_DB_PORT") +
 		")/" +
 		os.Getenv("GO_CHAT_DATABASE")
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		fmt.Println(err.Error())
-		panic("failed to connect database")
-	}
-	return db
+	return db, err
 }

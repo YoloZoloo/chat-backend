@@ -170,7 +170,7 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func GetPrivRoomID(uniqID int16, peerID string) (int, error) {
+func GetPrivRoomID(uniqID uint, peerID string) (int, error) {
 	db, err := OpenDB()
 	if err != nil {
 		return 0, err
