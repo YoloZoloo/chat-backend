@@ -58,7 +58,7 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 	(SELECT chatR.message_id, chatR.message, chatR.datetime, chatR.sender_id
 		FROM chat.room_chat_ts as chatR
 		INNER JOIN
-		(SELECT * FROM chat.room_chats WHERE guest_id = ?) as gm 
+		(SELECT * FROM chat.room_chats WHERE user_id = ?) as gm 
 			ON gm.room_id = chatR.room_id and gm.room_id = ?
 			ORDER BY message_id desc LIMIT 0 , 20) as chat
 	LEFT OUTER JOIN chat.users as user ON user.id = chat.sender_id
@@ -71,11 +71,15 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 
 	var messages []ChatMessages
 	// Loop through rows, using Scan to assign column data to struct fields.
-	for _, row := range chat {
-		messages = append(messages, ChatMessages{MessageID: row.MessageID,
-			Message:  row.Message,
-			DateName: row.DateTime.String() + ": " + row.Firstname + " " + row.Lastname,
-			SenderID: row.SenderID})
+	if res.RowsAffected == 0 {
+		messages = []ChatMessages{}
+	} else {
+		for _, row := range chat {
+			messages = append(messages, ChatMessages{MessageID: row.MessageID,
+				Message:  row.Message,
+				DateName: row.DateTime.String() + ": " + row.Firstname + " " + row.Lastname,
+				SenderID: row.SenderID})
+		}
 	}
 
 	respData, err := json.Marshal(messages)
@@ -106,14 +110,15 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var roomID int
-	res := db.Find(&model.PrivateChat{}, "(user_id = ? AND peer_id = ?) OR (peer_id = ? AND user_id = ?)").Scan(&roomID)
+	var privateRoom model.PrivateChat
+	res := db.Take(&privateRoom,
+		"(user_id = ? AND peer_id = ?) OR (peer_id = ? AND user_id = ?)", uniqueID, data.PeerID, uniqueID, data.PeerID)
 
 	if res.Error != nil {
 		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("privRoomID", roomID)
+	fmt.Println("privRoomID", privateRoom.RoomID)
 
 	var chat []ChatFromDb
 	res = db.Raw(`SELECT chat.message_id, chat.message, chat.datetime,
@@ -126,7 +131,7 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 		ON pm.room_id = chat_t.room_id and pm.room_id = ?
 		ORDER BY message_id desc LIMIT 0 , 20) as chat
 		LEFT OUTER JOIN chat.users as user ON user.id = chat.sender_id
-		ORDER BY chat.message_id ASC`, uniqueID, uniqueID, roomID).
+		ORDER BY chat.message_id ASC`, uniqueID, uniqueID, privateRoom.RoomID).
 		Scan(&chat)
 
 	if res.Error != nil {
@@ -136,11 +141,15 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 
 	var messages []ChatMessages
 	// Loop through rows, using Scan to assign column data to struct fields.
-	for _, row := range chat {
-		messages = append(messages, ChatMessages{MessageID: row.MessageID,
-			Message:  row.Message,
-			DateName: row.DateTime.String() + ": " + row.Firstname + " " + row.Lastname,
-			SenderID: row.SenderID})
+	if res.RowsAffected == 0 {
+		messages = []ChatMessages{}
+	} else {
+		for _, row := range chat {
+			messages = append(messages, ChatMessages{MessageID: row.MessageID,
+				Message:  row.Message,
+				DateName: row.DateTime.String() + ": " + row.Firstname + " " + row.Lastname,
+				SenderID: row.SenderID})
+		}
 	}
 
 	respData, err := json.Marshal(messages)
