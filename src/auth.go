@@ -48,8 +48,7 @@ func ValidateToken(signedToken string) (uint, error) {
 		return 0, err
 	}
 	claims, ok := token.Claims.(*JWTClaim)
-	var id uint
-	id = claims.UniqueID
+	id := claims.UniqueID
 	if !ok {
 		err = errors.New("couldn't parse claims")
 		return 0, err
@@ -78,14 +77,15 @@ func CheckPassword(credentials UserCredentials) (model.User, error) {
 	var user model.User
 	result := db.Take(&user, "username = ?", credentials.UserName)
 	if result.RowsAffected == 0 || result.Error != nil {
-		return model.User{}, errors.New("No such user.\r\n")
+		return model.User{}, errors.New("no such user")
 	}
 	fmt.Println(result)
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password))
 	if err != nil {
-		return model.User{}, errors.New("Invalid username or password.\r\n")
+		return model.User{}, errors.New("invalid username or password")
 	}
 
 	return user, nil
 }
+

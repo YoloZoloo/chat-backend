@@ -1,14 +1,25 @@
 package src
 
 import (
+	"chat-backend/model"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"time"
 )
 
+type ChatFromDb struct {
+	MessageID uint
+	Message   string
+	DateTime  time.Time
+	Lastname  string
+	Firstname string
+	SenderID  string
+}
+
 type ChatMessages struct {
-	MessageID int16  `json:"messageID"`
+	MessageID uint   `json:"messageID"`
 	Message   string `json:"message"`
 	DateName  string `json:"dateName"`
 	SenderID  string `json:"senderID"`
@@ -30,58 +41,47 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reqBody, _ := ioutil.ReadAll(r.Body)
+	reqBody, _ := io.ReadAll(r.Body)
 	var data RoomID
 	json.Unmarshal(reqBody, &data)
-	roomID := data.Room
 	fmt.Println("roomID", data.Room)
 
-	db, err := OpenDB()
+	db, err := model.DbInit()
 	if err != nil {
 		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	queryString :=
-		`SELECT chat.message_id, chat.message, chat.datetime,
-			IFNULL(user.lastname, "") as lastname, IFNULL(user.firstname, "") as firstname, IFNULL(user.id, "") as id FROM
-			(SELECT chatR.message_id, chatR.message, chatR.datetime, chatR.sender_id
-				FROM chat.groupchat_t as chatR
-				INNER JOIN
-				(SELECT * FROM chat.grouproom_m WHERE guest_id = ?) as gm 
-					ON gm.grouproom_id = chatR.grouproom_id and gm.grouproom_id = ?
-					ORDER BY message_id desc LIMIT 0 , 20) as chat
-			LEFT OUTER JOIN chat.user_m as user ON user.id = chat.sender_id
-			ORDER BY chat.message_id ASC`
+	var chat []ChatFromDb
+	res := db.Raw(`SELECT chat.message_id, chat.message, chat.datetime,
+	IFNULL(user.lastname, "") as lastname, IFNULL(user.firstname, "") as firstname, IFNULL(user.id, "") as id FROM
+	(SELECT chatR.message_id, chatR.message, chatR.datetime, chatR.sender_id
+		FROM chat.room_chat_ts as chatR
+		INNER JOIN
+		(SELECT * FROM chat.room_chats WHERE user_id = ?) as gm 
+			ON gm.room_id = chatR.room_id and gm.room_id = ?
+			ORDER BY message_id desc LIMIT 0 , 20) as chat
+	LEFT OUTER JOIN chat.users as user ON user.id = chat.sender_id
+	ORDER BY chat.message_id ASC`, uniqueID, data.Room).Scan(&chat)
 
-	rows, err := db.Query(queryString, uniqueID, roomID)
-
-	if err != nil {
-		respondError(w, err.Error(), http.StatusNonAuthoritativeInfo)
+	if res.Error != nil {
+		respondError(w, res.Error.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	defer rows.Close()
-
 	var messages []ChatMessages
 	// Loop through rows, using Scan to assign column data to struct fields.
-	for rows.Next() {
-		var MessageID int16
-		var Message string
-		var DateTime string
-		var LastName string
-		var FirstName string
-		var SenderID string
-		if err := rows.Scan(&MessageID, &Message, &DateTime, &LastName, &FirstName, &SenderID); err != nil {
-			respondError(w, err.Error(), http.StatusInternalServerError)
-			return
+	if res.RowsAffected == 0 {
+		messages = []ChatMessages{}
+	} else {
+		for _, row := range chat {
+			messages = append(messages, ChatMessages{MessageID: row.MessageID,
+				Message:  row.Message,
+				DateName: row.DateTime.String() + ": " + row.Firstname + " " + row.Lastname,
+				SenderID: row.SenderID})
 		}
-		messages = append(messages, ChatMessages{MessageID: MessageID,
-			Message:  Message,
-			DateName: DateTime + ": " + FirstName + " " + LastName,
-			SenderID: SenderID})
 	}
-	rows.Close()
+
 	respData, err := json.Marshal(messages)
 	if err != nil {
 		respondError(w, err.Error(), http.StatusInternalServerError)
@@ -89,8 +89,8 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 	}
 	AllowOriginAccess(w)
 	w.Write(respData)
-	return
 }
+
 func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Authorization")
 	uniqueID, err := ValidateToken(token)
@@ -99,67 +99,60 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reqBody, _ := ioutil.ReadAll(r.Body)
+	reqBody, _ := io.ReadAll(r.Body)
 	var data PeerID
 	json.Unmarshal(reqBody, &data)
+	fmt.Println("peerID", data.PeerID)
 
-	peer := data.PeerID
-	fmt.Println("peerID", peer)
-
-	db, err := OpenDB()
+	db, err := model.DbInit()
 	if err != nil {
 		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	roomID, err := GetPrivRoomID(uniqueID, peer)
-	if err != nil {
+	var roomID int
+	res := db.Find(&model.PrivateChat{},
+		"(user_id = ? AND peer_id = ?) OR (peer_id = ? AND user_id = ?)", uniqueID, data.PeerID, uniqueID, data.PeerID).
+		Scan(&roomID)
+
+	if res.Error != nil {
 		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	fmt.Println("privRoomID", roomID)
 
-	queryString :=
-		`SELECT chat.message_id, chat.message, chat.datetime,
-			user.lastname, user.firstname, user.id 
-			FROM
-			(SELECT chat_t.message_id, chat_t.message, chat_t.datetime, chat_t.sender_id
-				FROM chat.privatechat_t as chat_t
-			INNER JOIN
-			(SELECT * FROM chat.privateroom_m WHERE idA = ? or idB = ?) as pm 
-			ON pm.privateroom_id = chat_t.privateroom_id and pm.privateroom_id = ?
-			ORDER BY message_id desc LIMIT 0 , 20) as chat
-			LEFT OUTER JOIN chat.user_m as user ON user.id = chat.sender_id
-			ORDER BY chat.message_id ASC `
+	var chat []ChatFromDb
+	res = db.Raw(`SELECT chat.message_id, chat.message, chat.datetime,
+		user.lastname, user.firstname, user.id 
+		FROM
+		(SELECT chat_t.message_id, chat_t.message, chat_t.datetime, chat_t.sender_id
+			FROM chat.private_chat_ts as chat_t
+		INNER JOIN
+		(SELECT * FROM chat.private_chats WHERE peer_id = ? or user_id = ?) as pm 
+		ON pm.room_id = chat_t.room_id and pm.room_id = ?
+		ORDER BY message_id desc LIMIT 0 , 20) as chat
+		LEFT OUTER JOIN chat.users as user ON user.id = chat.sender_id
+		ORDER BY chat.message_id ASC`, uniqueID, uniqueID, roomID).
+		Scan(&chat)
 
-	rows, err := db.Query(queryString, uniqueID, uniqueID, roomID)
-
-	if err != nil {
-		respondError(w, err.Error(), http.StatusNonAuthoritativeInfo)
+	if res.Error != nil {
+		respondError(w, res.Error.Error(), http.StatusNonAuthoritativeInfo)
 		return
 	}
 
-	defer rows.Close()
-
 	var messages []ChatMessages
 	// Loop through rows, using Scan to assign column data to struct fields.
-	for rows.Next() {
-		var MessageID int16
-		var Message string
-		var DateTime string
-		var LastName string
-		var FirstName string
-		var SenderID string
-		if err := rows.Scan(&MessageID, &Message, &DateTime, &LastName, &FirstName, &SenderID); err != nil {
-			respondError(w, err.Error(), http.StatusInternalServerError)
-			return
+	if res.RowsAffected == 0 {
+		messages = []ChatMessages{}
+	} else {
+		for _, row := range chat {
+			messages = append(messages, ChatMessages{MessageID: row.MessageID,
+				Message:  row.Message,
+				DateName: row.DateTime.String() + ": " + row.Firstname + " " + row.Lastname,
+				SenderID: row.SenderID})
 		}
-		messages = append(messages, ChatMessages{MessageID: MessageID,
-			Message:  Message,
-			DateName: DateTime + ": " + FirstName + " " + LastName,
-			SenderID: SenderID})
 	}
-	rows.Close()
+
 	respData, err := json.Marshal(messages)
 	if err != nil {
 		respondError(w, err.Error(), http.StatusInternalServerError)
@@ -167,29 +160,5 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 	}
 	AllowOriginAccess(w)
 	w.Write(respData)
-	return
 }
 
-func GetPrivRoomID(uniqID uint, peerID string) (int, error) {
-	db, err := OpenDB()
-	if err != nil {
-		return 0, err
-	}
-
-	queryString := `SELECT privateroom_id from privateroom_m 
-		WHERE (idA = ? AND idB = ?) OR (idB = ? AND idA = ?)`
-	rows, err := db.Query(queryString, uniqID, peerID, uniqID, peerID)
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-
-	var privateRoomID int
-	for rows.Next() {
-		if err := rows.Scan(&privateRoomID); err != nil {
-			return 0, err
-		}
-	}
-	rows.Close()
-	return privateRoomID, err
-}

@@ -15,20 +15,20 @@ type User struct {
 	Firstname      string
 	Lastname       string
 	Icon           string
-	AdminAuthority int32
+	AdminAuthority int
 	Password       string
 }
 
 type RoomChat struct {
-	RoomID int32 `gorm:"not null"`
-	UserID uint  `gorm:"not null"`
+	RoomID int  `gorm:"not null"`
+	UserID uint `gorm:"not null"`
 }
 
 type RoomChat_t struct {
 	MessageID uint `gorm:"primarykey; autoIncrement"`
 	Message   string
 	SenderID  uint
-	RoomID    int32
+	RoomID    int
 	Datetime  time.Time
 }
 
@@ -38,11 +38,11 @@ type PrivateChat struct {
 	UserId uint `gorm:"not null"`
 }
 type PrivateChat_t struct {
-	MessageID     uint `gorm:"primarykey; autoIncrement"`
-	Message       string
-	SenderID      uint
-	PrivateRoomID uint
-	Datetime      time.Time
+	MessageID uint `gorm:"primarykey; autoIncrement"`
+	Message   string
+	SenderID  uint
+	RoomID    uint
+	Datetime  time.Time
 }
 
 func Migrate() {
@@ -67,3 +67,4 @@ func DbInit() (*gorm.DB, error) {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	return db, err
 }
+

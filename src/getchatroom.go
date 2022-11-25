@@ -1,14 +1,20 @@
 package src
 
 import (
+	"chat-backend/model"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 type SubscribedRooms struct {
 	GroupRoom   []string   `json:"grouproom_id"`
 	PrivateChat []PeerInfo `json:"privateroom_id"`
+}
+type PeerInfoDb struct {
+	Username string
+	ID       int
 }
 type PeerInfo struct {
 	ID     string `json:"id"`
@@ -24,82 +30,51 @@ func GetSubscribedRooms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := OpenDB()
+	db, err := model.DbInit()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	queryString := "SELECT grouproom_id FROM chat.grouproom_m WHERE guest_id = ?"
-	rows, err := db.Query(queryString, uniqueID)
-	if err != nil {
-		fmt.Println("here")
+	var roomChat []model.RoomChat
+	res := db.Find(&roomChat, "user_id = ?", uniqueID)
+	if res.Error != nil || res.RowsAffected == 0 {
 		http.Error(w, err.Error(), http.StatusNonAuthoritativeInfo)
 		return
 	}
-	defer rows.Close()
 
 	var groupRooms []string
 	// Loop through rows, using Scan to assign column data to struct fields.
-	for rows.Next() {
-		var room string
-		if err := rows.Scan(&room); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+
+	if res.RowsAffected == 0 {
+		groupRooms = []string{}
+	} else {
+		for _, row := range roomChat {
+			groupRooms = append(groupRooms, strconv.Itoa(row.RoomID))
 		}
-		groupRooms = append(groupRooms, room)
 	}
-	rows.Close()
 
-	queryString = `SELECT user.user_id, user.id as id FROM chat.user_m as user
-					RIGHT OUTER JOIN (SELECT idA from chat.privateroom_m WHERE idB = ? ) as pr
-        			ON user.id = pr.idA`
+	var peers []PeerInfoDb
+	res = db.Raw(`SELECT user.username, user.id FROM chat.users as user
+		RIGHT OUTER JOIN (
+			SELECT user_id as id from chat.private_chats WHERE peer_id = ? 
+			UNION ALL 
+			SELECT peer_id as id from chat.private_chats WHERE user_id = ?
+		) as pr
+		ON user.id = pr.id`, uniqueID, uniqueID).Scan(&peers)
 
-	rows, err = db.Query(queryString, uniqueID)
-	if err != nil {
+	if res.Error != nil {
 		http.Error(w, err.Error(), http.StatusNonAuthoritativeInfo)
 		return
 	}
-	defer rows.Close()
 
 	var privateRooms []PeerInfo
-	for rows.Next() {
-		var peer_userID string
-		var peer_id string
-
-		if err := rows.Scan(&peer_userID, &peer_id); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+	if res.RowsAffected == 0 {
+		privateRooms = []PeerInfo{}
+	} else {
+		for _, row := range peers {
+			privateRooms = append(privateRooms, PeerInfo{ID: strconv.Itoa(row.ID), UserID: row.Username})
 		}
-		fmt.Println(privateRooms)
-		privateRooms = append(privateRooms, PeerInfo{ID: peer_id, UserID: peer_userID})
-		// privateRooms = append(privateRooms, peer_userID)
-	}
-	rows.Close()
-
-	queryString = `SELECT user.user_id, user.id as id
-					FROM chat.user_m as user
-					RIGHT OUTER JOIN (SELECT idB from chat.privateroom_m WHERE idA = ? ) as pr
-					ON user.id = pr.idB`
-
-	rows, err = db.Query(queryString, uniqueID)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNonAuthoritativeInfo)
-		return
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var peer_userID string
-		var peer_id string
-
-		if err := rows.Scan(&peer_userID, &peer_id); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		privateRooms = append(privateRooms, PeerInfo{ID: peer_id, UserID: peer_userID})
 	}
 
 	respData, err := json.Marshal(
@@ -111,5 +86,5 @@ func GetSubscribedRooms(w http.ResponseWriter, r *http.Request) {
 	}
 	AllowOriginAccess(w)
 	w.Write(respData)
-	return
 }
+
