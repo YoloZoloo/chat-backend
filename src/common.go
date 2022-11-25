@@ -2,9 +2,7 @@ package src
 
 import (
 	"bufio"
-	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -42,7 +40,7 @@ func respondError(w http.ResponseWriter, err string, status int) {
 }
 
 func ShowDefaultIcon(w http.ResponseWriter, r *http.Request) {
-	buf, err := ioutil.ReadFile("common/defaultIcon.png")
+	buf, err := os.ReadFile("common/defaultIcon.png")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,13 +88,3 @@ func SetEnvVariables() {
 	os.Setenv("GO_CHAT_JWT_KEY", jwt_sign_key)
 }
 
-//This function should be replaced by your own DB. It doesn't how to be MYSQL.
-func OpenDB() (*sql.DB, error) {
-	db, err := sql.Open("mysql",
-		os.Getenv("GO_CHAT_DB_USERNAME")+":"+os.Getenv("GO_CHAT_DB_PASSWORD")+
-			"@tcp("+
-			os.Getenv("GO_CHAT_DB_HOST")+":"+os.Getenv("GO_CHAT_DB_PORT")+
-			")/"+
-			os.Getenv("GO_CHAT_DATABASE"))
-	return db, err
-}
