@@ -3,7 +3,7 @@ package src
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	_ "github.com/astaxie/session"
@@ -22,7 +22,7 @@ type loginResponse struct {
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
-	reqBody, _ := ioutil.ReadAll(r.Body)
+	reqBody, _ := io.ReadAll(r.Body)
 	var creds UserCredentials
 	err := json.Unmarshal(reqBody, &creds)
 	if err != nil {
@@ -55,3 +55,4 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
