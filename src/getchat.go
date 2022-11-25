@@ -115,6 +115,7 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 		"(user_id = ? AND peer_id = ?) OR (peer_id = ? AND user_id = ?)", uniqueID, data.PeerID, uniqueID, data.PeerID).
 		Scan(&roomID)
 
+
 	if res.Error != nil {
 		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -142,6 +143,7 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 
 	var messages []ChatMessages
 	// Loop through rows, using Scan to assign column data to struct fields.
+
 	if res.RowsAffected == 0 {
 		messages = []ChatMessages{}
 	} else {
@@ -152,7 +154,6 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 				SenderID: row.SenderID})
 		}
 	}
-
 	respData, err := json.Marshal(messages)
 	if err != nil {
 		respondError(w, err.Error(), http.StatusInternalServerError)
