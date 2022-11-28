@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 )
 
 type ChatFromDb struct {
 	MessageID uint
 	Message   string
-	DateTime  time.Time
+	Datetime  string
 	Lastname  string
 	Firstname string
 	SenderID  string
@@ -31,6 +30,8 @@ type RoomID struct {
 type PeerID struct {
 	PeerID string `json:"peer"`
 }
+
+var layout = "2006-01-02 15:04:05"
 
 func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Authorization")
@@ -53,16 +54,16 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var chat []ChatFromDb
-	res := db.Raw(`SELECT chat.message_id, chat.message, chat.datetime,
+	res := db.Raw(`SELECT chats.message_id, chats.message, chats.datetime,
 	IFNULL(user.lastname, "") as lastname, IFNULL(user.firstname, "") as firstname, IFNULL(user.id, "") as id FROM
 	(SELECT chatR.message_id, chatR.message, chatR.datetime, chatR.sender_id
 		FROM chat.room_chat_ts as chatR
 		INNER JOIN
 		(SELECT * FROM chat.room_chats WHERE user_id = ?) as gm 
 			ON gm.room_id = chatR.room_id and gm.room_id = ?
-			ORDER BY message_id desc LIMIT 0 , 20) as chat
-	LEFT OUTER JOIN chat.users as user ON user.id = chat.sender_id
-	ORDER BY chat.message_id ASC`, uniqueID, data.Room).Scan(&chat)
+			ORDER BY message_id desc LIMIT 0 , 20) as chats
+	LEFT OUTER JOIN chat.users as user ON user.id = chats.sender_id
+	ORDER BY chats.message_id ASC`, uniqueID, data.Room).Scan(&chat)
 
 	if res.Error != nil {
 		respondError(w, res.Error.Error(), http.StatusInternalServerError)
@@ -75,9 +76,10 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 		messages = []ChatMessages{}
 	} else {
 		for _, row := range chat {
+			fmt.Println(row)
 			messages = append(messages, ChatMessages{MessageID: row.MessageID,
 				Message:  row.Message,
-				DateName: row.DateTime.String() + ": " + row.Firstname + " " + row.Lastname,
+				DateName: row.Datetime + ": " + row.Firstname + " " + row.Lastname,
 				SenderID: row.SenderID})
 		}
 	}
@@ -121,7 +123,7 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("privRoomID", privateRoom.RoomID)
 
 	var chat []ChatFromDb
-	res = db.Raw(`SELECT chat.message_id, chat.message, chat.datetime,
+	res = db.Raw(`SELECT chats.message_id, chats.message, chats.datetime,
 		user.lastname, user.firstname, user.id 
 		FROM
 		(SELECT chat_t.message_id, chat_t.message, chat_t.datetime, chat_t.sender_id
@@ -129,9 +131,9 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 		INNER JOIN
 		(SELECT * FROM chat.private_chats WHERE peer_id = ? or user_id = ?) as pm 
 		ON pm.room_id = chat_t.room_id and pm.room_id = ?
-		ORDER BY message_id desc LIMIT 0 , 20) as chat
-		LEFT OUTER JOIN chat.users as user ON user.id = chat.sender_id
-		ORDER BY chat.message_id ASC`, uniqueID, uniqueID, privateRoom.RoomID).
+		ORDER BY message_id desc LIMIT 0 , 20) as chats
+		LEFT OUTER JOIN chat.users as user ON user.id = chats.sender_id
+		ORDER BY chats.message_id ASC`, uniqueID, uniqueID, privateRoom.RoomID).
 		Scan(&chat)
 
 	if res.Error != nil {
@@ -147,7 +149,7 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 		for _, row := range chat {
 			messages = append(messages, ChatMessages{MessageID: row.MessageID,
 				Message:  row.Message,
-				DateName: row.DateTime.String() + ": " + row.Firstname + " " + row.Lastname,
+				DateName: row.Datetime + ": " + row.Firstname + " " + row.Lastname,
 				SenderID: row.SenderID})
 		}
 	}
@@ -160,4 +162,3 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 	AllowOriginAccess(w)
 	w.Write(respData)
 }
-

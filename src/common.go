@@ -11,10 +11,15 @@ import (
 )
 
 func StartServer() {
+	hub := newHub()
+	go hub.run()
 	r := mux.NewRouter()
 	r.Methods(http.MethodOptions).HandlerFunc(RespondOptions)
 	r.Path("/api/login").Methods(http.MethodPost).HandlerFunc(Login)
 	r.Path("/api/register").Methods(http.MethodPost).HandlerFunc(RegisterUser)
+	r.Path("/ws").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ListenWS(hub, w, r)
+	})
 	r.HandleFunc("/defaultIcon.png", ShowDefaultIcon)
 
 	s := r.PathPrefix("/api/chatscreen").Subrouter()
@@ -87,4 +92,3 @@ func SetEnvVariables() {
 	os.Setenv("GO_CHAT_DATABASE", db_database)
 	os.Setenv("GO_CHAT_JWT_KEY", jwt_sign_key)
 }
-

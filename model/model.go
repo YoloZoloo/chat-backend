@@ -64,7 +64,6 @@ func DbInit() (*gorm.DB, error) {
 		os.Getenv("GO_CHAT_DB_HOST") + ":" + os.Getenv("GO_CHAT_DB_PORT") +
 		")/" +
 		os.Getenv("GO_CHAT_DATABASE")
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(mysql.New(mysql.Config{DSN: dsn}), &gorm.Config{})
 	return db, err
 }
-
