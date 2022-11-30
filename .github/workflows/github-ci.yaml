@@ -27,5 +27,7 @@ jobs:
           echo "${{ secrets.DB_PORT }}" >> .env
           echo "${{ secrets.DB_NAME }}" >> .env
           echo "${{ secrets.SIGN_KEY }}" >> .env
+          echo "${{ secrets.CHAT_DOMAIN }}" >> .env
+          echo "${{ secrets.WS_DOMAIN }}" >> .env
       - name: run test
         run: go test

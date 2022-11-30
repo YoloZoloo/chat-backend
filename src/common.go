@@ -84,6 +84,8 @@ func SetEnvVariables() {
 	db_port := envVariables[3]
 	db_database := envVariables[4]
 	jwt_sign_key := envVariables[5]
+	chatDomain := envVariables[6]
+	wsDomain := envVariables[7]
 
 	os.Setenv("GO_CHAT_DB_USERNAME", db_username)
 	os.Setenv("GO_CHAT_DB_PASSWORD", db_password)
@@ -91,4 +93,6 @@ func SetEnvVariables() {
 	os.Setenv("GO_CHAT_DB_PORT", db_port)
 	os.Setenv("GO_CHAT_DATABASE", db_database)
 	os.Setenv("GO_CHAT_JWT_KEY", jwt_sign_key)
+	os.Setenv("GO_CHAT_DOMAIN", chatDomain)
+	os.Setenv("GO_WS_DOMAIN", wsDomain)
 }

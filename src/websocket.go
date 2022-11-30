@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -14,9 +15,10 @@ import (
 
 type wsMessage struct {
 	Connect  bool   `json:"connect"`
+	Name     string `json:"name"`
 	Msg      string `json:"message"`
-	SenderID int    `json:"senderID"`
-	PeerID   int    `json:"peerID"`
+	SenderID int    `json:"sender_id"`
+	PeerID   int    `json:"peer_id"`
 	Room     int    `json:"chatroom"`
 	DateName string `json:"dateName"`
 }
@@ -63,12 +65,10 @@ type Client struct {
 // The application runs readPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
-// func persistToDB(message []byte) {
-// 	db, err := model.DbInit()
-
-// }
 
 const NOT_SELECTED = -1
+
+var userMap = make(map[int]*Client)
 
 func insertToDB(data *wsMessage) error {
 	db, err := model.DbInit()
@@ -76,23 +76,18 @@ func insertToDB(data *wsMessage) error {
 		return err
 	}
 	now := time.Now()
-	fmt.Println(now)
+	data.DateName = now.Format("2006-01-02 15:04:05") + ": " + data.Name
+
 	if data.PeerID == NOT_SELECTED {
-		data.DateName = now.Format("2006-01-02 15:04:05")
-		fmt.Println("datetime", data.DateName)
 		db.Create(&model.RoomChat_t{Message: data.Msg, SenderID: uint(data.SenderID), RoomID: data.Room, Datetime: now})
 	} else {
 		var privateRoom model.PrivateChat
 		res := db.Take(&privateRoom,
 			"(user_id = ? AND peer_id = ?) OR (peer_id = ? AND user_id = ?)", data.SenderID, data.PeerID, data.SenderID, data.PeerID)
-
 		if res.Error != nil {
 			return res.Error
 		}
-
-		data.DateName = now.Format("2006-01-02 15:04:05")
-		fmt.Println("datetime", data.DateName)
-		db.Create(model.PrivateChat_t{Message: data.Msg, SenderID: uint(data.SenderID), RoomID: privateRoom.RoomID, Datetime: now})
+		db.Create(&model.PrivateChat_t{Message: data.Msg, SenderID: uint(data.SenderID), RoomID: privateRoom.RoomID, Datetime: now})
 	}
 	return nil
 }
@@ -115,19 +110,17 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		// from here we start extracting the datas
+		//
 		var data wsMessage
 		json.Unmarshal(message, &data)
 		if data.Connect == true {
 			c.UID = data.SenderID
+			userMap[data.SenderID] = c
 			if err != nil {
 				fmt.Println("error!")
 				c.conn.Close()
 			}
-			fmt.Println(data)
-			fmt.Println("connect request received: ", c.UID, data.SenderID)
 		} else {
-			fmt.Println("roomID", data.Room)
-
 			if insertToDB(&data) != nil {
 				return
 			}
@@ -186,11 +179,11 @@ func (c *Client) writePump() {
 	}
 }
 func ListenWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
-	// r.Header().Set("Origin", r.RemoteAddr)
-	if r.Header.Get("Origin") == "http://localhost:3000" ||
-		r.Header.Get("Origin") == "www.codeatyolo.link" {
+	chatDomain := os.Getenv("GO_CHAT_DOMAIN")
+	wsDomain := os.Getenv("GO_WS_DOMAIN")
+	if r.Header.Get("Origin") == chatDomain {
 		r.Header.Del("Origin")
-		r.Header.Set("Origin", "http://localhost:9999")
+		r.Header.Set("Origin", wsDomain)
 	}
 
 	fmt.Println(r.Header.Get("Origin"))

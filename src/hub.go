@@ -4,7 +4,11 @@
 
 package src
 
-import "fmt"
+import (
+	"chat-backend/model"
+	"encoding/json"
+	"fmt"
+)
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
@@ -38,17 +42,46 @@ func (h *Hub) run() {
 			h.clients[client] = true
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
-				fmt.Println("deregistering: ", h.clients[client])
 				delete(h.clients, client)
 				close(client.send)
 			}
 		case message := <-h.broadcast:
 			// we should implement our own logic here
-			fmt.Println("about to broadcast")
-			for client := range h.clients {
+			var clients []*Client
+			var unmarshalMsg wsMessage
+			json.Unmarshal(message, &unmarshalMsg)
+
+			if unmarshalMsg.PeerID == NOT_SELECTED {
+				var UIDs []int
+				db, err := model.DbInit()
+				if err != nil {
+					fmt.Println("error")
+					return
+				}
+				res := db.Table("room_chats").Select("user_id").Where("room_id = ?", unmarshalMsg.Room).Scan(&UIDs)
+				if res.Error != nil {
+					fmt.Println("res error")
+					return
+				}
+				for _, uid := range UIDs {
+					client, ok := userMap[uid]
+					if ok {
+						clients = append(clients, client)
+					}
+				}
+			} else {
+				client, ok := userMap[unmarshalMsg.SenderID]
+				if ok {
+					clients = append(clients, client)
+				}
+				client, ok = userMap[unmarshalMsg.PeerID]
+				if ok {
+					clients = append(clients, client)
+				}
+			}
+			for _, client := range clients {
 				select {
 				case client.send <- message:
-					fmt.Println("sent to the customer")
 				default:
 					close(client.send)
 					delete(h.clients, client)

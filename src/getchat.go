@@ -3,9 +3,9 @@ package src
 import (
 	"chat-backend/model"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type ChatFromDb struct {
@@ -28,7 +28,7 @@ type RoomID struct {
 }
 
 type PeerID struct {
-	PeerID string `json:"peer"`
+	PeerID int `json:"peer_id"`
 }
 
 var layout = "2006-01-02 15:04:05"
@@ -45,7 +45,6 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 	reqBody, _ := io.ReadAll(r.Body)
 	var data RoomID
 	json.Unmarshal(reqBody, &data)
-	fmt.Println("roomID", data.Room)
 
 	db, err := model.DbInit()
 	if err != nil {
@@ -76,11 +75,19 @@ func GetGroupChat(w http.ResponseWriter, r *http.Request) {
 		messages = []ChatMessages{}
 	} else {
 		for _, row := range chat {
-			fmt.Println(row)
-			messages = append(messages, ChatMessages{MessageID: row.MessageID,
-				Message:  row.Message,
-				DateName: row.Datetime + ": " + row.Firstname + " " + row.Lastname,
-				SenderID: row.SenderID})
+			datetime, err := time.Parse(layout, row.Datetime)
+			if err != nil {
+				messages = append(messages, ChatMessages{MessageID: row.MessageID,
+					Message:  row.Message,
+					DateName: row.Datetime + ": " + row.Firstname + " " + row.Lastname,
+					SenderID: row.SenderID})
+			} else {
+				messages = append(messages, ChatMessages{MessageID: row.MessageID,
+					Message:  row.Message,
+					DateName: datetime.Format(layout) + ": " + row.Firstname + " " + row.Lastname,
+					SenderID: row.SenderID})
+			}
+
 		}
 	}
 
@@ -104,7 +111,6 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 	reqBody, _ := io.ReadAll(r.Body)
 	var data PeerID
 	json.Unmarshal(reqBody, &data)
-	fmt.Println("peerID", data.PeerID)
 
 	db, err := model.DbInit()
 	if err != nil {
@@ -120,7 +126,6 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 		respondError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("privRoomID", privateRoom.RoomID)
 
 	var chat []ChatFromDb
 	res = db.Raw(`SELECT chats.message_id, chats.message, chats.datetime,
@@ -147,10 +152,19 @@ func GetPrivateChat(w http.ResponseWriter, r *http.Request) {
 		messages = []ChatMessages{}
 	} else {
 		for _, row := range chat {
-			messages = append(messages, ChatMessages{MessageID: row.MessageID,
-				Message:  row.Message,
-				DateName: row.Datetime + ": " + row.Firstname + " " + row.Lastname,
-				SenderID: row.SenderID})
+			datetime, err := time.Parse(layout, row.Datetime)
+			if err != nil {
+				messages = append(messages, ChatMessages{MessageID: row.MessageID,
+					Message:  row.Message,
+					DateName: row.Datetime + ": " + row.Firstname + " " + row.Lastname,
+					SenderID: row.SenderID})
+			} else {
+				messages = append(messages, ChatMessages{MessageID: row.MessageID,
+					Message:  row.Message,
+					DateName: datetime.Format(layout) + ": " + row.Firstname + " " + row.Lastname,
+					SenderID: row.SenderID})
+			}
+
 		}
 	}
 

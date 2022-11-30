@@ -3,7 +3,6 @@ package src
 import (
 	model "chat-backend/model"
 	"errors"
-	"fmt"
 	"os"
 	"time"
 
@@ -79,7 +78,6 @@ func CheckPassword(credentials UserCredentials) (model.User, error) {
 	if result.RowsAffected == 0 || result.Error != nil {
 		return model.User{}, errors.New("no such user")
 	}
-	fmt.Println(result)
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password))
 	if err != nil {
@@ -88,4 +86,3 @@ func CheckPassword(credentials UserCredentials) (model.User, error) {
 
 	return user, nil
 }
-
