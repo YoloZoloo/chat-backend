@@ -32,10 +32,13 @@ jobs:
           echo "${{ secrets.DB_PORT }}" >> .env
           echo "${{ secrets.DB_NAME }}" >> .env
           echo "${{ secrets.DB_SIGN_KEY }}" >> .env
+          echo "${{ secrets.CHAT_DOMAIN }}" >> .env
+          echo "${{ secrets.WS_DOMAIN }}" >> .env
           echo "${{ secrets.CHAT_BACKEND_SSH_KEY }}" > ssh-key.pem
           chmod 600 ./ssh-key.pem
           eval $(ssh-agent)
           ssh-add ./ssh-key.pem
           ssh -o StrictHostKeyChecking=no "$USER"@"$HOST" systemctl stop chat-backend
           scp -o StrictHostKeyChecking=no ./chat-backend "$USER"@"$HOST":/root/chat-backend
+          scp -o StrictHostKeyChecking=no ./.env "$USER"@"$HOST":/root/chat-backend
           ssh -o StrictHostKeyChecking=no "$USER"@"$HOST" systemctl restart chat-backend

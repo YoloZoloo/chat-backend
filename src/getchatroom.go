@@ -3,7 +3,6 @@ package src
 import (
 	"chat-backend/model"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 )
@@ -17,7 +16,7 @@ type PeerInfoDb struct {
 	ID       int
 }
 type PeerInfo struct {
-	ID     string `json:"id"`
+	ID     int    `json:"id"`
 	UserID string `json:"user_id"`
 }
 
@@ -73,13 +72,13 @@ func GetSubscribedRooms(w http.ResponseWriter, r *http.Request) {
 		privateRooms = []PeerInfo{}
 	} else {
 		for _, row := range peers {
-			privateRooms = append(privateRooms, PeerInfo{ID: strconv.Itoa(row.ID), UserID: row.Username})
+			privateRooms = append(privateRooms, PeerInfo{ID: row.ID, UserID: row.Username})
 		}
 	}
 
 	respData, err := json.Marshal(
 		&SubscribedRooms{GroupRoom: groupRooms, PrivateChat: privateRooms})
-	fmt.Println(string(respData))
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -87,4 +86,3 @@ func GetSubscribedRooms(w http.ResponseWriter, r *http.Request) {
 	AllowOriginAccess(w)
 	w.Write(respData)
 }
-

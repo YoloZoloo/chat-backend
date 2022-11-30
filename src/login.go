@@ -2,7 +2,6 @@ package src
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -30,9 +29,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("user_id: " + creds.UserName)
-	fmt.Println("password: " + creds.Password)
-
 	user, err := CheckPassword(creds)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -55,4 +51,3 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-

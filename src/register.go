@@ -62,9 +62,6 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		respondError(w, "couldn't create a user", http.StatusBadRequest)
 		return
 	}
-	// result.QueryFields
-	fmt.Println(result.Scan(""))
-	fmt.Println(me)
 
 	// insert to lobby
 	room := model.RoomChat{
@@ -93,7 +90,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	for _, user := range otherUsers {
 		rooms = append(rooms, model.PrivateChat{PeerID: user.ID, UserId: me.ID})
 	}
-	fmt.Println(rooms)
+
 	result = db.Create(rooms)
 	if result.Error != nil {
 		respondError(w, "couldn't prepare insertadfa statement.", http.StatusBadRequest)
@@ -103,4 +100,3 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	AllowOriginAccess(w)
 	w.WriteHeader(http.StatusOK) // 200 OK
 }
-
