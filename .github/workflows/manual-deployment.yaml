@@ -5,8 +5,6 @@ on:
       git-ref:
         description: Git Ref (Optional)    
         required: false
-
-name: deploy
 jobs:
   deploy:
     name: Deploy to Digital Ocean
